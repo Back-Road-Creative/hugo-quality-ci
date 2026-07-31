@@ -1,0 +1,56 @@
+{
+  "contentDir": "content",
+  "postSections": ["blog"],
+  "skipFiles": ["_index.md"],
+  "requiredFields": ["title"],
+  "postRequiredFields": ["title", "date"],
+
+  "generatedPost": {
+    "minWordCount": 100,
+    "placeholderPhrases": [
+      "General improvements",
+      "See release notes",
+      "Lorem ipsum"
+    ],
+    "emptyDescriptionPatterns": [
+      "^\\s*$",
+      "\\b(?:adds|includes|contains|covers)\\s*\\.?\\s*$"
+    ],
+    "shaFreeFields": ["summary", "description"],
+    "requireChangeList": true
+  },
+
+  "contentAccuracy": {
+    "enumerationHeadings": [
+      "tasks",
+      "components",
+      "features",
+      "what is included",
+      "what changed"
+    ],
+    "maxUndisclosedBullets": 3,
+    "disclaimerPhrases": ["not disclosed", "not confirmed", "unconfirmed"],
+    "confirmationVerbs": ["deployed", "added", "implemented", "released", "shipped"],
+    "pendingIndicators": ["in progress", "expected", "pending", "upcoming"],
+    "resultClaimPattern": "(Results?:[^.\\n]*(?:reduced|improved|eliminated|dropped|increased)[^.\\n]*\\.)",
+    "hedgePrefixes": [
+      "Early results",
+      "Initial results",
+      "Reported results",
+      "Expected results"
+    ],
+    "quoteMarker": "Quote:",
+    "sourceHeading": "## Source",
+    "codeCallPattern": "\\b([a-z][a-z0-9]*(?:_[a-z0-9]+)+)\\s*\\(",
+    "maxUnqualifiedCalls": 2,
+    "exampleQualifiers": [
+      "example",
+      "hypothetical",
+      "for instance",
+      "pattern:",
+      "approach:",
+      "illustrative"
+    ],
+    "forbiddenPhrases": ["TBD", "FIXME", "lorem ipsum"]
+  }
+}

@@ -1,0 +1,199 @@
+name: PR CI
+
+# Gates every pull request on a clean build plus the checks a Hugo site
+# usually only runs at deploy time. A link rot, an accessibility regression or
+# a broken front-matter date that surfaces after merge is a late gate: the
+# artifact already exists and someone has to undo it. Running the same checks
+# on the PR costs a few minutes and nothing else.
+#
+# Runner: ubuntu-latest (GitHub-hosted), deliberately NOT self-hosted. A
+# `pull_request`-triggered workflow on a self-hosted runner lets a fork PR
+# queue arbitrary jobs onto that machine. Keep deploys on your own runner if
+# you like; keep PR CI here.
+#
+# Set the repository up so this workflow is a *required* status check
+# (Settings -> Branches -> branch protection). Without that it renders a red X
+# that a reviewer can merge straight past.
+#
+# Install: see the README of hugo-quality-ci. In short, this file expects
+#   .github/workflows/pr-ci.yml   <- this file
+#   config/                        <- pa11y, Lighthouse and htmltest configs
+#   python/hugo_quality/           <- the Python validators
+#   scripts/                       <- the Node validators
+#   .hugo-quality.json             <- shared thresholds (optional)
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  HUGO_VERSION: '0.139.0'
+  HUGO_BUILD_ARGS: '--minify'
+  NODE_VERSION: '22'
+  PYTHON_VERSION: '3.12'
+  # Your production domain. Canonical and og: URLs point at the live site,
+  # which is stale by design until this change deploys, so the external link
+  # check skips it. The built pages are already covered by the internal check.
+  SITE_DOMAIN: 'example.com'
+  HTMLTEST_VERSION: '0.17.0'
+  HTMLTEST_SHA256: '775c597ee74899d6002cd2d93076f897f4ba68686bceabe2e5d72e84c57bc0fb'
+  # The validators import from ./python without being installed.
+  PYTHONPATH: python
+
+jobs:
+  pr-ci:
+    name: PR CI (build + validate)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@2752ce1d29631191ea3f27c23495fa06139a5b78 # v3
+        with:
+          hugo-version: ${{ env.HUGO_VERSION }}
+          extended: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m venv venv
+          venv/bin/pip install --quiet pyyaml pytest
+
+      - name: Validate front matter
+        run: |
+          echo "=== Front matter validation ==="
+          venv/bin/python3 -m hugo_quality.frontmatter
+
+      - name: Validate content accuracy
+        run: |
+          echo "=== Content accuracy validation ==="
+          venv/bin/python3 -m pytest --pyargs hugo_quality.content_check -v
+
+      # ---------------------------------------------------------------------
+      # Extension point: checks that belong to your site and not to this
+      # workflow -- a data-contract test asserting your front-end still reads
+      # the fields your exporter writes, a fact-checker over generated copy.
+      # Drop them at these paths and they run; leave them out and the step is
+      # a no-op. Do not delete the step -- the pattern is the useful part.
+      # ---------------------------------------------------------------------
+      - name: Site-specific Python checks
+        run: |
+          if [ -f scripts/test_data_contract.py ]; then
+            echo "=== Data contract validation ==="
+            venv/bin/python3 -m pytest scripts/test_data_contract.py -v
+          else
+            echo "scripts/test_data_contract.py not present — skipping"
+          fi
+
+      - name: Install Node dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --ignore-scripts
+          elif [ -f package.json ]; then
+            npm install --ignore-scripts --no-audit --no-fund
+          else
+            echo "no package.json — skipping"
+          fi
+
+      - name: Build CSS
+        # Whatever your theme's head links must exist before the link check
+        # runs, or htmltest reports the missing stylesheet as a broken link.
+        run: |
+          if [ -f package.json ] && node -e "process.exit(require('./package.json').scripts?.['build:css'] ? 0 : 1)"; then
+            npm run build:css
+          else
+            echo "no build:css script — skipping"
+          fi
+
+      - name: Hugo build
+        run: |
+          echo "=== Hugo build ==="
+          hugo ${HUGO_BUILD_ARGS}
+
+      - name: Validate generated posts
+        # Machine-written pages (release notes, changelogs) exit 0 while
+        # producing an empty page. Point this at whichever section yours land
+        # in; with no such section the glob matches nothing and the step passes.
+        run: |
+          echo "=== Generated post validation ==="
+          shopt -s nullglob
+          files=(content/releases/*.md)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no generated posts found — skipping"
+          else
+            node scripts/validate-generated-post.js "${files[@]}"
+          fi
+        shell: bash
+
+      - name: Site-specific Node checks
+        run: |
+          if [ -f scripts/verify-facts.js ]; then
+            echo "=== Fact verification ==="
+            node scripts/verify-facts.js
+          else
+            echo "scripts/verify-facts.js not present — skipping"
+          fi
+
+      - name: Install htmltest
+        # Download, verify the checksum, then extract to a user-writable
+        # directory. No sudo, and the pin means an unexpected artifact at the
+        # release URL fails the job instead of running.
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o htmltest.tar.gz \
+            "https://github.com/wjdp/htmltest/releases/download/v${HTMLTEST_VERSION}/htmltest_${HTMLTEST_VERSION}_linux_amd64.tar.gz"
+          echo "${HTMLTEST_SHA256}  htmltest.tar.gz" | sha256sum -c -
+          tar xz -C "$HOME/.local/bin" htmltest -f htmltest.tar.gz
+          rm htmltest.tar.gz
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Validate links (internal + external)
+        run: |
+          echo "=== Link check ==="
+          if [ ! -f .htmltest.yml ]; then
+            sed "s/__SITE_DOMAIN__/${SITE_DOMAIN}/g" config/htmltest.yml > .htmltest.yml
+          fi
+          htmltest
+
+      - name: Validate accessibility (pa11y-ci, WCAG2AA)
+        # GitHub-hosted runners ship Chrome at /usr/bin/google-chrome, and
+        # --ignore-scripts above skipped Puppeteer's own Chromium download, so
+        # point pa11y at the system binary.
+        env:
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
+        run: |
+          echo "=== Accessibility audit ==="
+          # Bind port 0 and read back what the kernel handed out: hardcoding a
+          # port means two concurrent jobs on one machine collide, and the
+          # failure looks like an a11y regression rather than a busy port.
+          PORT=$(python3 -c 'import socket;s=socket.socket();s.bind(("",0));print(s.getsockname()[1]);s.close()')
+          sed "s|http://localhost:1315|http://localhost:$PORT|g" config/pa11yci.json > .pa11yci.run.json
+          python3 -m http.server "$PORT" --directory public &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true; rm -f .pa11yci.run.json' EXIT
+          sleep 2
+          STATUS=0
+          npx --yes pa11y-ci@4 --config .pa11yci.run.json || STATUS=$?
+          exit $STATUS
+
+      - name: Lighthouse CI
+        uses: treosh/lighthouse-ci-action@3e7e23fb74242897f95c0ba9cabad3d0227b9b18 # v12
+        with:
+          configPath: config/lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true

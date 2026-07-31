@@ -1,0 +1,124 @@
+{{/*
+  JSON-LD structured data.
+
+  Emits AT MOST ONE <script type="application/ld+json"> block per page, chosen
+  by page type. Two blocks on one page is the most common way a site's
+  structured data gets ignored: search engines pick one and drop the rest, and
+  which one they pick is not yours to choose.
+
+  Selection:
+    - home, or any path in params.jsonld.organization_paths  -> Organization
+    - a regular page in params.jsonld.post_section           -> BlogPosting
+    - the path at params.jsonld.software.path                -> SoftwareApplication
+    - anything else                                          -> nothing
+
+  Every value comes from site params. Nothing is hardcoded, so this file is
+  copied unchanged into any site.
+
+  Required params:
+    params.description        fallback description for pages without one
+  Optional params:
+    params.author             Person name used as the post author
+    params.ogImage            path or absolute URL of the sharing image / logo
+    params.sameAs             list of profile URLs for the Organization
+    params.jsonld.organization_paths   default ["/about/"]
+    params.jsonld.post_section         default "blog"
+    params.jsonld.software.*           see the README; omit the table entirely
+                                       to skip the SoftwareApplication block
+
+  The JSON is built with `dict` and rendered with `jsonify`, never assembled as
+  a string. Hand-written JSON in a template breaks the first time a title
+  contains a quote or an ampersand.
+*/ -}}
+
+{{- $site := .Site -}}
+{{- $p := $site.Params -}}
+{{- $ld := $p.jsonld | default dict -}}
+{{- $baseURL := $site.BaseURL | strings.TrimRight "/" -}}
+
+{{- /* Sharing image: absolute, whether the param is a path or a full URL. */ -}}
+{{- $image := "" -}}
+{{- with (.Params.ogImage | default $p.ogImage) -}}
+  {{- $image = cond (or (hasPrefix . "http://") (hasPrefix . "https://")) . (printf "%s%s" $baseURL .) -}}
+{{- end -}}
+
+{{- /* Page description: page front matter, then summary, then site default. */ -}}
+{{- $description := $p.description -}}
+{{- if .Description -}}
+  {{- $description = .Description -}}
+{{- else if and .IsPage .Summary -}}
+  {{- $description = .Summary | plainify | chomp -}}
+{{- end -}}
+
+{{- /* Organization, reused as the publisher of every other block. */ -}}
+{{- $organization := dict
+    "@type" "Organization"
+    "name" $site.Title
+    "url" (printf "%s/" $baseURL)
+-}}
+{{- with $image -}}{{- $organization = merge $organization (dict "logo" .) -}}{{- end -}}
+{{- with $p.sameAs -}}{{- $organization = merge $organization (dict "sameAs" .) -}}{{- end -}}
+
+{{- $organizationPaths := $ld.organization_paths | default (slice "/about/") -}}
+{{- $postSection := $ld.post_section | default "blog" -}}
+{{- $software := $ld.software -}}
+
+{{- if or .IsHome (in $organizationPaths .RelPermalink) -}}
+  {{- $block := merge $organization (dict "@context" "https://schema.org") -}}
+  {{- with $description -}}{{- $block = merge $block (dict "description" .) -}}{{- end -}}
+<script type="application/ld+json">
+{{ $block | jsonify (dict "indent" "  ") | safeJS }}
+</script>
+
+{{- else if and .IsPage (eq .Section $postSection) -}}
+  {{- $modified := .Lastmod -}}
+  {{- with .Params.updated -}}{{- $modified = time . -}}{{- end -}}
+  {{- $block := dict
+      "@context" "https://schema.org"
+      "@type" "BlogPosting"
+      "headline" .Title
+      "url" .Permalink
+      "datePublished" (.Date.Format "2006-01-02")
+      "dateModified" ($modified.Format "2006-01-02")
+      "publisher" $organization
+      "mainEntityOfPage" (dict "@type" "WebPage" "@id" .Permalink)
+  -}}
+  {{- with $description -}}{{- $block = merge $block (dict "description" .) -}}{{- end -}}
+  {{- with $p.author -}}
+    {{- $block = merge $block (dict "author" (dict "@type" "Person" "name" .)) -}}
+  {{- end -}}
+  {{- with $image -}}{{- $block = merge $block (dict "image" .) -}}{{- end -}}
+  {{- with .Params.tags -}}{{- $block = merge $block (dict "keywords" (delimit . ", ")) -}}{{- end -}}
+<script type="application/ld+json">
+{{ $block | jsonify (dict "indent" "  ") | safeJS }}
+</script>
+
+{{- else if and $software (eq .RelPermalink ($software.path | default "/")) -}}
+  {{- $block := dict
+      "@context" "https://schema.org"
+      "@type" "SoftwareApplication"
+      "name" ($software.name | default $site.Title)
+      "url" .Permalink
+      "publisher" $organization
+  -}}
+  {{- with $description -}}{{- $block = merge $block (dict "description" .) -}}{{- end -}}
+  {{- with $software.application_category -}}
+    {{- $block = merge $block (dict "applicationCategory" .) -}}
+  {{- end -}}
+  {{- with $software.operating_system -}}
+    {{- $block = merge $block (dict "operatingSystem" .) -}}
+  {{- end -}}
+  {{- with $software.version -}}{{- $block = merge $block (dict "softwareVersion" .) -}}{{- end -}}
+  {{- with $software.download_url -}}{{- $block = merge $block (dict "downloadUrl" .) -}}{{- end -}}
+  {{- with $software.license -}}{{- $block = merge $block (dict "license" .) -}}{{- end -}}
+  {{- with $image -}}{{- $block = merge $block (dict "image" .) -}}{{- end -}}
+  {{- with $software.price -}}
+    {{- $block = merge $block (dict "offers" (dict
+        "@type" "Offer"
+        "price" .
+        "priceCurrency" ($software.price_currency | default "USD"))) -}}
+  {{- end -}}
+<script type="application/ld+json">
+{{ $block | jsonify (dict "indent" "  ") | safeJS }}
+</script>
+{{- end -}}

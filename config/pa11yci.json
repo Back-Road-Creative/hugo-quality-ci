@@ -1,0 +1,24 @@
+{
+  "_comment": [
+    "pa11y-ci configuration. Port 1315 is a placeholder: the PR CI workflow",
+    "rewrites it to a free port it allocated, and locally it matches",
+    "`hugo server --port 1315`. List the pages that represent each distinct",
+    "template rather than every page -- a template fixed once is fixed",
+    "everywhere. A per-URL `ignore` array documents a known, accepted failure;",
+    "keep the reason next to it or it becomes permanent by accident."
+  ],
+  "defaults": {
+    "standard": "WCAG2AA",
+    "timeout": 30000,
+    "chromeLaunchConfig": {
+      "args": ["--no-sandbox", "--disable-gpu"]
+    },
+    "runners": ["axe", "htmlcs"]
+  },
+  "urls": [
+    "http://localhost:1315/",
+    "http://localhost:1315/about/",
+    "http://localhost:1315/blog/",
+    "http://localhost:1315/docs/"
+  ]
+}

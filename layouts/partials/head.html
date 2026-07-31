@@ -1,0 +1,116 @@
+{{/*
+  Document head: title, description, canonical, Open Graph, Twitter card, feed
+  autodiscovery, and the JSON-LD partial.
+
+  Everything is driven by site params so the file is copied unchanged into any
+  site. Nothing here assumes a CSS framework or a JS bundle -- list your own in
+  params.stylesheets / params.scripts.
+
+  Optional params:
+    params.description       fallback meta description
+    params.tagline           appended to the site title on the home page
+    params.title_separator   default "|"
+    params.color_scheme      "dark" or "light"; sets <meta name="color-scheme">
+    params.ogImage           sharing image, path or absolute URL
+    params.twitter_handle    "@example"
+    params.favicon           e.g. "/favicon.svg"
+    params.apple_touch_icon  e.g. "/apple-touch-icon.png"
+    params.webmanifest       e.g. "/site.webmanifest"
+    params.theme_color       e.g. "#101010"
+    params.stylesheets       list of hrefs, emitted in order
+    params.scripts           list of src values, emitted with `defer`
+*/ -}}
+{{- $p := .Site.Params -}}
+{{- $separator := $p.title_separator | default "|" -}}
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{{- with $p.color_scheme }}
+{{- /* Tell the user agent, so scrollbars and form controls match the page. */}}
+<meta name="color-scheme" content="{{ . }}">
+{{- end }}
+
+{{- /* Title: the home page gets "Site — tagline"; every other page gets
+       "Page | Site", which keeps the site name in search results without
+       burying the page name. */ -}}
+{{- $title := printf "%s %s %s" .Title $separator .Site.Title -}}
+{{- if .IsHome -}}
+  {{- $title = .Site.Title -}}
+  {{- with $p.tagline }}{{ $title = printf "%s — %s" $.Site.Title . }}{{ end -}}
+{{- end -}}
+
+{{- /* Description precedence: page front matter, then summary, then default. */ -}}
+{{- $description := $p.description -}}
+{{- if .Description -}}
+  {{- $description = .Description -}}
+{{- else if and .IsPage .Summary -}}
+  {{- $description = .Summary | plainify | chomp -}}
+{{- end -}}
+
+{{- $ogTitle := cond .IsHome $title .Title -}}
+{{- $image := "" -}}
+{{- with (.Params.ogImage | default $p.ogImage) -}}{{- $image = . | absURL -}}{{- end -}}
+{{- $imageAlt := .Site.Title -}}
+{{- with $p.tagline }}{{ $imageAlt = printf "%s — %s" $.Site.Title . }}{{ end -}}
+
+<title>{{ $title }}</title>
+<meta name="description" content="{{ $description }}">
+
+{{- /* Taxonomy and term pages are thin by construction; keep them out of the
+       index but let crawlers follow through to the real pages. */}}
+{{- if or (eq .Kind "term") (eq .Kind "taxonomy") }}
+<meta name="robots" content="noindex,follow">
+{{- end }}
+
+<link rel="canonical" href="{{ .Permalink }}">
+
+<meta property="og:type" content="{{ cond .IsPage "article" "website" }}">
+<meta property="og:url" content="{{ .Permalink }}">
+<meta property="og:title" content="{{ $ogTitle }}">
+<meta property="og:description" content="{{ $description }}">
+<meta property="og:site_name" content="{{ .Site.Title }}">
+{{- with $image }}
+<meta property="og:image" content="{{ . }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{{ $imageAlt }}">
+{{- end }}
+
+<meta name="twitter:card" content="{{ cond (ne $image "") "summary_large_image" "summary" }}">
+{{- with $p.twitter_handle }}
+<meta name="twitter:site" content="{{ . }}">
+{{- end }}
+<meta name="twitter:title" content="{{ $ogTitle }}">
+<meta name="twitter:description" content="{{ $description }}">
+{{- with $image }}
+<meta name="twitter:image" content="{{ . }}">
+<meta name="twitter:image:alt" content="{{ $imageAlt }}">
+{{- end }}
+
+{{- /* Feed autodiscovery from the page's own output formats, so it stays
+       correct when a section defines a narrower feed. */}}
+{{- with .OutputFormats.Get "rss" }}
+<link rel="alternate" type="application/rss+xml" href="{{ .Permalink }}" title="{{ $.Site.Title }}">
+{{- end }}
+
+{{ partial "jsonld.html" . }}
+
+{{- with $p.favicon }}
+<link rel="icon" href="{{ . | relURL }}">
+{{- end }}
+{{- with $p.apple_touch_icon }}
+<link rel="apple-touch-icon" href="{{ . | relURL }}">
+{{- end }}
+{{- with $p.webmanifest }}
+<link rel="manifest" href="{{ . | relURL }}">
+{{- end }}
+{{- with $p.theme_color }}
+<meta name="theme-color" content="{{ . }}">
+{{- end }}
+
+{{- range $p.stylesheets }}
+<link rel="stylesheet" href="{{ . | relURL }}">
+{{- end }}
+{{- range $p.scripts }}
+<script src="{{ . | relURL }}" defer></script>
+{{- end }}

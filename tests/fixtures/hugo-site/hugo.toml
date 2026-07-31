@@ -1,0 +1,32 @@
+baseURL = "https://example.com/"
+title = "Example Site"
+languageCode = "en-us"
+disableKinds = ["taxonomy", "term"]
+
+[params]
+description = "An example site used to exercise the head and JSON-LD partials."
+author = "Example Author"
+tagline = "structured data, checked"
+ogImage = "/images/og.png"
+sameAs = ["https://github.com/example", "https://example.net/profile"]
+twitter_handle = "@example"
+color_scheme = "dark"
+favicon = "/favicon.svg"
+theme_color = "#101010"
+stylesheets = ["/css/site.css"]
+scripts = ["/js/site.js"]
+
+[params.jsonld]
+organization_paths = ["/about/"]
+post_section = "blog"
+
+[params.jsonld.software]
+path = "/docs/"
+name = "example-tool"
+version = "1.4.0"
+download_url = "https://example.com/download"
+application_category = "DeveloperApplication"
+operating_system = "Linux, macOS, Windows"
+price = "0"
+price_currency = "USD"
+license = "https://opensource.org/license/mit"

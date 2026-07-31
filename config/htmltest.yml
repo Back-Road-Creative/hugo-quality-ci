@@ -1,0 +1,39 @@
+# htmltest configuration for a built Hugo site.
+#
+# The PR CI workflow substitutes __SITE_DOMAIN__ with the SITE_DOMAIN env value
+# and writes the result to .htmltest.yml. Commit your own .htmltest.yml instead
+# if you need more than a domain substitution -- the workflow leaves an
+# existing file alone.
+
+DirectoryPath: "public"
+CheckExternal: true
+CheckInternal: true
+CheckMailto: false
+CheckTel: false
+CheckFavicon: false
+ExternalTimeout: 20
+
+# External checking is ON so a wrong upstream link -- a moved docs page, a
+# repository path that only exists on one branch -- fails before merge rather
+# than sitting live. The ignore list is short on purpose; every entry is a URL
+# that cannot be checked correctly rather than one that is inconvenient.
+IgnoreURLs:
+  # Fragment-only, mail and telephone links: nothing to fetch.
+  - "^#"
+  - "^mailto:"
+  - "^tel:"
+  - "^javascript:"
+  # Your own domain: canonical and og: URLs point at the LIVE site, which is
+  # stale by design until this change deploys, so a new page's canonical would
+  # 404. The built pages are covered by CheckInternal.
+  - "^https?://(www\\.)?__SITE_DOMAIN__"
+  # Localhost links in code samples.
+  - "^https?://localhost"
+  # Social platforms rate-limit and bot-block CI runners: a 403 or 429 here
+  # means "we noticed you are a robot", not "the link is broken".
+  - "^https?://(www\\.)?linkedin\\.com/"
+  - "^https?://(www\\.)?(twitter|x)\\.com/"
+
+# Hugo emits directory-style URLs; a missing trailing slash is a redirect, not
+# a broken link.
+IgnoreDirectoryMissingTrailingSlash: true

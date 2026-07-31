@@ -1,0 +1,34 @@
+{
+  "name": "hugo-quality-ci",
+  "version": "0.1.0",
+  "description": "Pull-request quality gates for Hugo sites: front matter, content accuracy, links, accessibility and structured data.",
+  "license": "MIT",
+  "author": "Joe Petrucelli <joepetjr@gmail.com>",
+  "type": "module",
+  "private": false,
+  "engines": {
+    "node": ">=18.19.0"
+  },
+  "keywords": [
+    "hugo",
+    "static-site",
+    "ci",
+    "accessibility",
+    "seo",
+    "front-matter"
+  ],
+  "files": [
+    "scripts",
+    "workflows",
+    "layouts",
+    "config",
+    "python",
+    ".hugo-quality.json"
+  ],
+  "scripts": {
+    "test": "node --test tests/js/*.test.js"
+  },
+  "comments": {
+    "dependencies": "None, deliberately. Every script here is Node stdlib only, so it can be copied straight into a site without changing that site's dependency tree. pa11y-ci and Lighthouse CI are invoked via npx from the workflow and are not dependencies of this package."
+  }
+}
