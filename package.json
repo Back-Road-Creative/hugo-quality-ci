@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Pull-request quality gates for Hugo sites: front matter, content accuracy, links, accessibility and structured data.",
   "license": "MIT",
-  "author": "Joe Petrucelli <joepetjr@gmail.com>",
+  "author": "Joe Petrucelli <backroadcreativeco@gmail.com>",
   "type": "module",
   "private": false,
   "engines": {

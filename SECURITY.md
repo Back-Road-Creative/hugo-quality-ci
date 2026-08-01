@@ -12,7 +12,7 @@ issue for a security report.
 
 - Preferred: open a private advisory via GitHub's **Security → Report a
   vulnerability** tab on this repository.
-- Fallback, if that tab is unavailable to you: email **joepetjr@gmail.com** with
+- Fallback, if that tab is unavailable to you: email **backroadcreativeco@gmail.com** with
   `hugo-quality-ci security` in the subject.
 
 Please include the affected version or commit, a description of the issue and
