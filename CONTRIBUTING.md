@@ -26,6 +26,15 @@ Hugo (extended, >= 0.139) on your PATH is optional but recommended: without it
 the partial tests skip, and those are the only tests that check what the
 templates actually render.
 
+### Reproducible CI dependencies
+
+CI installs Python packages with `pip install -c constraints/ci.txt`, and pins
+pip itself, so a run resolves the same versions until that file changes. Local
+setup above is deliberately unconstrained. To update CI's versions, change
+`constraints/ci.txt` in its own commit and say why in the message. The Hugo
+version is pinned in `.github/workflows/ci.yml` and must match `HUGO_VERSION` in
+`workflows/pr-ci.yml`; `tests/test_workflow.py` fails if they drift.
+
 ## The gates
 
 Run both before you push. CI runs the same thing across Node 18/20/22 and
