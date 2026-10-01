@@ -198,6 +198,10 @@ test('the CLI still runs when its own path contains a space', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hqci dir '));
   const script = path.join(dir, 'validate-generated-post.js');
   fs.copyFileSync(SCRIPT, script);
+  // The copy leaves the package behind, so mark the temp dir as ESM. Without
+  // this Node 18 loads the copy as CommonJS and dies on `import` before the
+  // entry-point guard under test ever runs.
+  fs.writeFileSync(path.join(dir, 'package.json'), '{"type":"module"}\n', 'utf8');
   const file = path.join(dir, 'bad.md');
   fs.writeFileSync(file, post({ body: 'Too short.\n' }), 'utf8');
 
