@@ -1,0 +1,17 @@
+# Exact versions the Python CI job installs, so a run next month resolves the
+# same packages as a run today. Used as `pip install -c constraints/ci.txt`.
+#
+# Provenance: read from `pip freeze` of a working install of this repo's
+# `.[test]` extra (Python 3.12) on 2026-09-30, limited to what PyYAML and
+# pytest pull in. Not included: setuptools, which the `[build-system]` table
+# in pyproject.toml still resolves as `>=68` in pip's isolated build.
+#
+# To update: bump a pin in its own commit, say why in the message, and let CI
+# on the 3.11, 3.12 and 3.13 matrix prove it. tests/test_workflow.py fails if a
+# dependency declared in pyproject.toml has no pin here.
+iniconfig==2.3.0
+packaging==26.3
+pluggy==1.6.0
+Pygments==2.21.0
+pytest==9.1.1
+PyYAML==6.0.3
